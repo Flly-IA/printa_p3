@@ -3,6 +3,7 @@
 """
 API FastAPI para geração de cardápios dinâmicos usando CorelDRAW
 Roda em Windows Server ou localmente
+VERSÃO CORRIGIDA: suporte a COM em threads
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
@@ -16,6 +17,7 @@ import uuid
 import logging
 from typing import Optional
 from datetime import datetime
+import pythoncom  # ADICIONADO: para inicializar COM em threads
 
 # Importar o módulo de build
 import build_cardapio_dinamico as builder
@@ -28,10 +30,10 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="API Cardápio Dinâmico",
     description="API para geração automática de cardápios em PDF/PNG/CDR usando CorelDRAW",
-    version="1.0.0"
+    version="1.0.1"
 )
 
-# CORS - permitir acesso de qualquer origem
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,7 +48,6 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 OUTPUT_DIR = BASE_DIR / "outputs"
 TEMP_DIR = BASE_DIR / "temp"
 
-# Criar diretórios se não existirem
 OUTPUT_DIR.mkdir(exist_ok=True)
 TEMP_DIR.mkdir(exist_ok=True)
 
@@ -55,7 +56,7 @@ jobs_cache = {}
 
 class JobStatus(BaseModel):
     job_id: str
-    status: str  # pending, processing, completed, failed
+    status: str
     message: str
     files: Optional[dict] = None
     created_at: str
@@ -69,10 +70,10 @@ class CardapioConfig(BaseModel):
 
 @app.get("/")
 async def root():
-    """Endpoint raiz - informações da API"""
+    """Endpoint raiz"""
     return {
         "api": "Cardápio Dinâmico",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "status": "online",
         "endpoints": {
             "health": "/health",
@@ -86,15 +87,21 @@ async def root():
 async def health_check():
     """Verificar saúde da API"""
     try:
-        # Testar se CorelDRAW está disponível
-        corel = builder.get_corel_app(visible=True)
-        corel_status = "available"
+        # Inicializar COM temporariamente para teste
+        pythoncom.CoInitialize()
         try:
-            corel.Quit()
-        except:
-            pass
+            corel = builder.get_corel_app(visible=False)
+            corel_status = "available"
+            try:
+                corel.Quit()
+            except:
+                pass
+        except Exception as e:
+            corel_status = f"unavailable: {str(e)}"
+        finally:
+            pythoncom.CoUninitialize()
     except Exception as e:
-        corel_status = f"unavailable: {str(e)}"
+        corel_status = f"error: {str(e)}"
     
     return {
         "status": "healthy",
@@ -107,12 +114,28 @@ async def health_check():
     }
 
 def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
-    """Processar cardápio em background"""
+    """
+    Processar cardápio em background
+    CRÍTICO: Esta função roda em uma thread separada, precisa inicializar COM
+    """
+    
+    # CRÍTICO: Inicializar COM na thread de background
+    try:
+        pythoncom.CoInitialize()
+    except Exception as e:
+        logger.error(f"[{job_id}] Erro ao inicializar COM: {e}")
+        jobs_cache[job_id].update({
+            "status": "failed",
+            "message": f"Erro ao inicializar COM: {str(e)}",
+            "completed_at": datetime.now().isoformat()
+        })
+        return
+    
     try:
         logger.info(f"[{job_id}] Iniciando processamento...")
         jobs_cache[job_id]["status"] = "processing"
         
-        # Diretório de saída para este job
+        # Diretório de saída
         job_output = OUTPUT_DIR / job_id
         job_output.mkdir(exist_ok=True)
         
@@ -121,13 +144,13 @@ def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
         tpl_b = TEMPLATES_DIR / "tplB.cdr"
         
         if not tpl_a.exists() or not tpl_b.exists():
-            raise FileNotFoundError("Templates CDR não encontrados. Execute create_templates.py primeiro.")
+            raise FileNotFoundError("Templates CDR não encontrados.")
         
-        # Parse do input
+        # Parse
         logger.info(f"[{job_id}] Parsing input...")
         data = builder.parse_txt(input_path)
         
-        # Salvar auditoria
+        # Auditoria
         builder.write_auditoria(job_output, data)
         
         # Inicializar CorelDRAW
@@ -146,7 +169,7 @@ def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
         for i in range(shapes.Count, 0, -1):
             s = shapes.Item(i)
             try:
-                if s.Type == 3:  # cdrTextShape
+                if s.Type == 3:
                     s.Delete()
             except:
                 pass
@@ -240,6 +263,13 @@ def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
             "message": f"Erro: {str(e)}",
             "completed_at": datetime.now().isoformat()
         })
+    
+    finally:
+        # CRÍTICO: Finalizar COM ao terminar
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
 
 @app.post("/cardapio/gerar")
 async def gerar_cardapio(
@@ -248,15 +278,7 @@ async def gerar_cardapio(
     font: str = "Arial",
     font_size: float = 10.0
 ):
-    """
-    Gerar cardápio a partir de arquivo TXT
-    
-    - **file**: Arquivo TXT com o relatório de preços
-    - **font**: Fonte a ser usada (padrão: Arial)
-    - **font_size**: Tamanho da fonte em pontos (padrão: 10.0)
-    
-    Retorna um job_id para acompanhar o status
-    """
+    """Gerar cardápio a partir de arquivo TXT"""
     
     # Validar arquivo
     if not file.filename.endswith('.txt'):
@@ -306,12 +328,7 @@ async def get_status(job_id: str):
 
 @app.get("/cardapio/download/{job_id}/{file_type}")
 async def download_file(job_id: str, file_type: str):
-    """
-    Baixar arquivo gerado
-    
-    - **job_id**: ID do job
-    - **file_type**: Tipo do arquivo (pdf, png, cdr, json, csv)
-    """
+    """Baixar arquivo gerado"""
     if job_id not in jobs_cache:
         raise HTTPException(status_code=404, detail="Job não encontrado")
     
@@ -319,7 +336,6 @@ async def download_file(job_id: str, file_type: str):
     if job["status"] != "completed":
         raise HTTPException(status_code=400, detail="Processamento ainda não concluído")
     
-    # Mapear tipos de arquivo
     file_map = {
         "pdf": "cardapio_output.pdf",
         "png": "cardapio_output.png",
@@ -348,17 +364,14 @@ async def limpar_job(job_id: str):
     if job_id not in jobs_cache:
         raise HTTPException(status_code=404, detail="Job não encontrado")
     
-    # Remover pasta de saída
     job_output = OUTPUT_DIR / job_id
     if job_output.exists():
         shutil.rmtree(job_output)
     
-    # Remover arquivo temp
     temp_input = TEMP_DIR / f"{job_id}_input.txt"
     if temp_input.exists():
         temp_input.unlink()
     
-    # Remover do cache
     del jobs_cache[job_id]
     
     return {"message": "Job removido com sucesso"}
