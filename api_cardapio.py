@@ -114,42 +114,50 @@ async def health_check():
 
 def apply_proper_formatting(doc, shape, font_name="Arial", font_size_pt=10.0):
     """
-    Aplica formatação correta: alinhamento à esquerda com tabs para preços
-    NÃO usa justificação que bagunça o texto
+    Aplica formatação simplificada usando apenas propriedades que funcionam
     """
     try:
-        # Obter o texto
+        # Obter o texto story
         text_range = shape.Text.Story
-        
-        # Configurar fonte e tamanho
-        text_range.Font = font_name
-        text_range.Size = float(font_size_pt)
-        
-        # IMPORTANTE: Usar alinhamento à ESQUERDA, não justificado
+
+        # Configurar fonte e tamanho PRIMEIRO
         try:
-            text_range.Alignment = 0  # 0 = cdrLeftAlignment
+            text_range.Font = font_name
+            text_range.Size = float(font_size_pt)
+            logger.info(f"   ✅ Fonte {font_name} {font_size_pt}pt aplicada")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro na fonte: {e}")
+
+        # Alinhamento à ESQUERDA (0 = cdrLeftAlignment)
+        try:
+            text_range.Alignment = 0
             logger.info("   ✅ Alinhamento à esquerda aplicado")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao definir alinhamento: {e}")
-        
+
+        # Cor do texto (preto CMYK)
+        try:
+            text_range.Fill.UniformColor.CMYKAssign(0, 0, 0, 100)
+            logger.info("   ✅ Cor preta aplicada")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro na cor: {e}")
+
         # Configurar tabs para alinhar preços à direita
         try:
-            # Limpar tabs existentes
-            shape.Text.TabStops.Clear()
-            
             # Obter largura do frame
             frame_width = float(shape.SizeWidth)
-            
+
             # Posição do tab deve ser no final da linha (margem direita)
-            # Usar 98% da largura para dar uma pequena margem
-            tab_position = frame_width * 0.98
-            
-            # Adicionar tab com alinhamento à direita
-            # 2 = Right alignment, "." = dot leader (pontinhos)
-            shape.Text.TabStops.Add(tab_position, 2, ".")
-            
-            logger.info(f"   ✅ Tab configurado em {tab_position:.2f} com leader dots")
-            
+            # Usar 95% da largura para dar margem
+            tab_position = frame_width * 0.95
+
+            # Limpar tabs existentes e adicionar novo
+            text_range.TabStops.Clear()
+            # 2 = cdrRightTab (alinhamento à direita)
+            text_range.TabStops.Add(tab_position, 2)
+
+            logger.info(f"   ✅ Tab configurado em {tab_position:.2f}")
+
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao configurar tabs: {e}")
             # Se tabs falharem, o texto ainda ficará legível
@@ -245,16 +253,27 @@ def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
         page = doc.ActivePage
         layer = page.ActiveLayer
         
-        # Limpar textos existentes do template
+        # Limpar TODOS os textos existentes do template
+        logger.info(f"[{job_id}] Limpando textos do template...")
+        texts_removed = 0
         try:
             shapes = page.Shapes
+            total_shapes = shapes.Count
+            logger.info(f"[{job_id}] Template tem {total_shapes} shapes")
+
             for i in range(shapes.Count, 0, -1):
-                s = shapes.Item(i)
                 try:
-                    if s.Type == 3:  # cdrTextShape
+                    s = shapes.Item(i)
+                    # Tipos de texto: 6 = cdrTextShape (genérico)
+                    # Tentar remover qualquer coisa que pareça texto
+                    if s.Type == 6:  # cdrTextShape
                         s.Delete()
-                except:
+                        texts_removed += 1
+                except Exception as e:
+                    logger.debug(f"[{job_id}] Não foi possível remover shape {i}: {e}")
                     pass
+
+            logger.info(f"[{job_id}] ✅ {texts_removed} textos removidos do template")
         except Exception as e:
             logger.warning(f"[{job_id}] Aviso ao limpar template: {e}")
         
@@ -284,55 +303,69 @@ def process_cardapio(job_id: str, input_path: Path, config: CardapioConfig):
         # Criar conteúdo do cardápio
         logger.info(f"[{job_id}] Criando conteúdo do cardápio...")
         frames = builder.ensure_area_frames(page, doc, data["model"])
-        
+
+        shapes_before = page.Shapes.Count
+        logger.info(f"[{job_id}] Shapes antes de criar conteúdo: {shapes_before}")
+
         if data["model"] == "A":
             # Modelo A: 1 coluna
+            logger.info(f"[{job_id}] Criando 1 caixa de texto (Modelo A)")
             seq = builder.flatten_with_headers(data["categories"])
             text_block = builder.compose_text_block(seq)
             left, bottom, right, top = frames[0]
-            
+
             shp = builder.create_paragraph_text(layer, left, bottom, right, top)
-            
+
             # Preencher texto primeiro
             builder.fill_paragraph(shp, text_block)
-            
+
             # Aplicar formatação correta (sem justificar)
             apply_proper_formatting(doc, shp, font_name=config.font, font_size_pt=config.font_size)
-            
+
         else:
             # Modelo B: 2 colunas
+            logger.info(f"[{job_id}] Criando 2 caixas de texto (Modelo B)")
             col1, col2 = builder.split_two_columns_preserving_order(data["categories"])
             tb1 = builder.compose_text_block(col1)
             tb2 = builder.compose_text_block(col2)
-            
+
             frame1, frame2 = frames
             left1, bottom1, right1, top1 = frame1
             left2, bottom2, right2, top2 = frame2
-            
+
             # Coluna 1
+            logger.info(f"[{job_id}] Criando coluna 1...")
             shp1 = builder.create_paragraph_text(layer, left1, bottom1, right1, top1)
             builder.fill_paragraph(shp1, tb1)
             apply_proper_formatting(doc, shp1, font_name=config.font, font_size_pt=config.font_size)
-            
+
             # Coluna 2
+            logger.info(f"[{job_id}] Criando coluna 2...")
             shp2 = builder.create_paragraph_text(layer, left2, bottom2, right2, top2)
             builder.fill_paragraph(shp2, tb2)
             apply_proper_formatting(doc, shp2, font_name=config.font, font_size_pt=config.font_size)
+
+        shapes_after = page.Shapes.Count
+        shapes_created = shapes_after - shapes_before
+        logger.info(f"[{job_id}] Shapes depois de criar conteúdo: {shapes_after}")
+        logger.info(f"[{job_id}] ✅ {shapes_created} shapes criadas")
         
         # SALVAR ARQUIVOS
         logger.info(f"[{job_id}] Salvando arquivos...")
         out_cdr = job_output / f"cardapio_{job_id}.cdr"
         out_pdf = job_output / "cardapio.pdf"
-        
+
         files_saved = {}
-        
+
         # Salvar CDR - múltiplos métodos
         cdr_saved = False
-        
-        # Método 1: SaveAs direto
+
+        # Método 1: SaveAs direto com path absoluto
         try:
-            cdr_path = str(out_cdr.absolute()).replace('/', '\\')
-            doc.SaveAs(cdr_path)
+            # Garantir que é uma string absoluta com barras invertidas
+            cdr_path_str = os.path.abspath(str(out_cdr))
+            logger.info(f"[{job_id}] Tentando salvar em: {cdr_path_str}")
+            doc.SaveAs(cdr_path_str)
             cdr_saved = True
             logger.info(f"[{job_id}] ✅ CDR salvo com SaveAs")
         except Exception as e1:

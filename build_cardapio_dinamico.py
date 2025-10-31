@@ -199,59 +199,88 @@ def ensure_area_frames(page, doc, model):
     return frames
 
 def create_paragraph_text(layer, x1, y1, x2, y2):
-    """Cria caixa de texto de parágrafo"""
+    """Cria caixa de texto de parágrafo com configuração inicial"""
     try:
         left = min(float(x1), float(x2))
         right = max(float(x1), float(x2))
         bottom = min(float(y1), float(y2))
         top = max(float(y1), float(y2))
-        
+
         shape = layer.CreateParagraphText(left, bottom, right, top, "")
+
+        # CRÍTICO: Desabilitar FitToFrame IMEDIATAMENTE após criação
+        # Isso evita que o CorelDRAW ajuste automaticamente o texto
+        try:
+            shape.Text.FitToFrame = False
+        except Exception:
+            pass
+
+        # Forçar alinhamento à esquerda desde o início
+        try:
+            shape.Text.Alignment = 0  # cdrLeftAlignment
+        except Exception:
+            pass
+
         return shape
     except Exception as e:
         print(f"    ❌ ERRO ao criar caixa: {e}")
         raise
 
 def apply_text_style_and_tabs(doc, shape, font_name="Arial", font_size_pt=10.0, right_tab_margin_mm=3.0):
-    """Aplica estilo e tabs ao texto"""
+    """Aplica estilo simplificado usando apenas propriedades que funcionam"""
     try:
         tr = shape.Text.Story
-        
-        tr.Characters.All.Font = str(font_name)
-        tr.Characters.All.Size = float(font_size_pt)
-        
+
+        # Fonte e tamanho
         try:
-            tr.Characters.All.Fill.UniformColor.CMYKAssign(0, 0, 0, 100)
+            tr.Font = str(font_name)
+            tr.Size = float(font_size_pt)
+            print(f"    ✅ Fonte {font_name} {font_size_pt}pt")
+        except Exception as e:
+            print(f"    ⚠ Erro na fonte: {e}")
+
+        # Alinhamento à ESQUERDA (0 = cdrLeftAlignment)
+        try:
+            tr.Alignment = 0
+            print("    ✅ Alinhamento à esquerda")
+        except Exception as e:
+            print(f"    ⚠ Erro no alinhamento: {e}")
+
+        # Cor do texto
+        try:
+            tr.Fill.UniformColor.CMYKAssign(0, 0, 0, 100)
         except Exception:
             pass
-        
+
+        # Tabs: limpar e adicionar na borda direita
         try:
-            shape.Text.TabStops.Clear()
-            pos = abs(float(shape.SizeWidth)) - (right_tab_margin_mm / 25.4)
-            shape.Text.TabStops.Add(float(pos), 2, ".")
+            frame_width = abs(float(shape.SizeWidth))
+            tab_position = frame_width * 0.95
+
+            tr.TabStops.Clear()
+            tr.TabStops.Add(float(tab_position), 2)  # 2 = cdrRightTab
+            print(f"    ✅ Tab em {tab_position:.2f}")
         except Exception as e:
             print(f"    ⚠ TabStop falhou: {e}")
-        
+
+        # Negrito para categorias
         try:
             text = tr.Text
             lines = text.split('\r\n')
             char_pos = 0
-            
             for line in lines:
-                if line and line.isupper() and not line.startswith('R$'):
+                if line and line.isupper() and 'R$' not in line:
                     start = char_pos + 1
                     end = start + len(line) - 1
-                    
                     try:
                         tr.Characters.Range(start, end).Bold = True
                         tr.Characters.Range(start, end).Size = float(font_size_pt + 1)
                     except Exception:
                         pass
-                
                 char_pos += len(line) + 2
         except Exception as e:
             print(f"    ⚠ Negrito falhou: {e}")
-        
+
     except Exception as e:
         print(f"    ⚠ Erro ao aplicar estilo: {e}")
 
@@ -334,16 +363,25 @@ def main():
     page = doc.ActivePage
     layer = page.ActiveLayer
 
-    # Limpar textos existentes
+    # Limpar textos existentes do template
+    print("   🔍 Limpando textos do template...")
+    texts_removed = 0
     try:
         shapes = page.Shapes
+        total_shapes = shapes.Count
+        print(f"   📊 Template tem {total_shapes} shapes")
+
         for i in range(shapes.Count, 0, -1):
-            s = shapes.Item(i)
             try:
-                if s.Type == 3:
+                s = shapes.Item(i)
+                # Tipo 6 = cdrTextShape (inclui artistic text e paragraph text)
+                if s.Type == 6:
                     s.Delete()
+                    texts_removed += 1
             except Exception:
                 pass
+
+        print(f"   ✅ {texts_removed} textos removidos")
     except Exception as e:
         print(f"   ⚠ Erro ao limpar template: {e}")
     
@@ -375,17 +413,23 @@ def main():
         print(f"   ❌ Erro ao criar título: {e}")
 
     # Criar conteúdo
+    print("   📝 Criando conteúdo do cardápio...")
     frames = ensure_area_frames(page, doc, data["model"])
-    
+
+    shapes_before = page.Shapes.Count
+    print(f"   📊 Shapes antes: {shapes_before}")
+
     if data["model"] == "A":
+        print("   📄 Modelo A: 1 coluna")
         seq = flatten_with_headers(data["categories"])
         text_block = compose_text_block(seq)
         left, bottom, right, top = frames[0]
-        
+
         shp = create_paragraph_text(layer, left, bottom, right, top)
-        apply_text_style_and_tabs(doc, shp, font_name=args.font, font_size_pt=args.size)
         fill_paragraph(shp, text_block)
+        apply_text_style_and_tabs(doc, shp, font_name=args.font, font_size_pt=args.size)
     else:
+        print("   📄 Modelo B: 2 colunas")
         col1, col2 = split_two_columns_preserving_order(data["categories"])
         tb1 = compose_text_block(col1)
         tb2 = compose_text_block(col2)
@@ -393,36 +437,49 @@ def main():
         frame1, frame2 = frames
         left1, bottom1, right1, top1 = frame1
         left2, bottom2, right2, top2 = frame2
-        
+
+        print("   📝 Coluna 1...")
         shp1 = create_paragraph_text(layer, left1, bottom1, right1, top1)
-        apply_text_style_and_tabs(doc, shp1, font_name=args.font, font_size_pt=args.size)
         fill_paragraph(shp1, tb1)
-        
+        apply_text_style_and_tabs(doc, shp1, font_name=args.font, font_size_pt=args.size)
+
+        print("   📝 Coluna 2...")
         shp2 = create_paragraph_text(layer, left2, bottom2, right2, top2)
-        apply_text_style_and_tabs(doc, shp2, font_name=args.font, font_size_pt=args.size)
         fill_paragraph(shp2, tb2)
+        apply_text_style_and_tabs(doc, shp2, font_name=args.font, font_size_pt=args.size)
+
+    shapes_after = page.Shapes.Count
+    shapes_created = shapes_after - shapes_before
+    print(f"   📊 Shapes depois: {shapes_after}")
+    print(f"   ✅ {shapes_created} shapes criadas")
 
     # Salvar e exportar
     out_cdr = outdir / "cardapio_output.cdr"
     out_pdf = outdir / "cardapio_output.pdf"
     out_png = outdir / "cardapio_output.png"
 
+    print("\n   💾 Salvando arquivos...")
+
     try:
-        cdr_path = str(out_cdr.absolute()).replace('/', '\\')
+        import os
+        cdr_path = os.path.abspath(str(out_cdr))
+        print(f"   🔍 Salvando CDR em: {cdr_path}")
         doc.SaveAs(cdr_path)
         print(f"   ✅ CDR: {out_cdr.name}")
     except Exception as e:
         print(f"   ⚠ CDR: {e}")
 
     try:
-        pdf_path = str(out_pdf.absolute()).replace('/', '\\')
+        pdf_path = os.path.abspath(str(out_pdf))
+        print(f"   🔍 Gerando PDF em: {pdf_path}")
         doc.PublishToPDF(pdf_path)
         print(f"   ✅ PDF: {out_pdf.name}")
     except Exception as e:
         print(f"   ⚠ PDF: {e}")
 
     try:
-        png_path = str(out_png.absolute()).replace('/', '\\')
+        png_path = os.path.abspath(str(out_png))
+        print(f"   🔍 Exportando PNG em: {png_path}")
         doc.Export(png_path, 13, 1)
         print(f"   ✅ PNG: {out_png.name}")
     except Exception as e:
