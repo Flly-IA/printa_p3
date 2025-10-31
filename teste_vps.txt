@@ -1,0 +1,17 @@
+﻿RELATÓRIO DE PREÇOS Bar Teste VPS
+
+*Cervejas*
+Brahma 600ml - R$ 12,00
+Heineken 600ml - R$ 16,00
+Skol 600ml - R$ 11,00
+Corona LN - R$ 10,00
+
+*Refrigerantes*
+Coca Cola Lata - R$ 5,00
+Guaraná Lata - R$ 4,50
+Pepsi 1L - R$ 7,00
+
+*Petiscos*
+Porção de Batata - R$ 15,00
+Calabresa Acebolada - R$ 18,00
+Pastel de Queijo - R$ 8,00

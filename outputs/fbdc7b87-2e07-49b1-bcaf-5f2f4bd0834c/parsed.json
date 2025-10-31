@@ -1,0 +1,195 @@
+{
+  "restaurant": "Bar Parada obrigatoria",
+  "model": "B",
+  "total_items": 37,
+  "categories": [
+    {
+      "category": "Cervejas Choop",
+      "items": [
+        {
+          "name": "Brahma Chopp 600ML",
+          "price": "R$ 12,00"
+        }
+      ]
+    },
+    {
+      "category": "Cervjas 600ml",
+      "items": [
+        {
+          "name": "Brahma Chopp 600ML",
+          "price": "R$ 12,00"
+        },
+        {
+          "name": "Stella Artois 600ML",
+          "price": "R$ 13,00"
+        },
+        {
+          "name": "Original 600ML",
+          "price": "R$ 13,00"
+        },
+        {
+          "name": "Spaten 600ML",
+          "price": "R$ 13,00"
+        },
+        {
+          "name": "Skol 600ML",
+          "price": "R$ 12,00"
+        },
+        {
+          "name": "Heineken 600ML",
+          "price": "R$ 16,00"
+        },
+        {
+          "name": "Amstel 600ML",
+          "price": "R$ 13,00"
+        },
+        {
+          "name": "Antarctica 600ML",
+          "price": "R$ 12,00"
+        }
+      ]
+    },
+    {
+      "category": "Cervejas Long Neck",
+      "items": [
+        {
+          "name": "Corona LN",
+          "price": "R$ 10,00"
+        },
+        {
+          "name": "Stella Pure Gold LN",
+          "price": "R$ 8,00"
+        },
+        {
+          "name": "Stella Artois LN",
+          "price": "R$ 8,00"
+        },
+        {
+          "name": "Spaten LN",
+          "price": "R$ 8,00"
+        },
+        {
+          "name": "Budweiser LN",
+          "price": "R$ 8,00"
+        }
+      ]
+    },
+    {
+      "category": "Cervejas Litrinho",
+      "items": [
+        {
+          "name": "Brahma Chopp 300ML",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Brahma Duplo Malte 300ML",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Original 300ML",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Budweiser 300ML",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Antarctica Pilsen 300ml",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Skol 300ML",
+          "price": "R$ 5,00"
+        }
+      ]
+    },
+    {
+      "category": "Cervejas Zero",
+      "items": [
+        {
+          "name": "Heineken Zero LN",
+          "price": "R$ 10,00"
+        },
+        {
+          "name": "Corona Cero LN",
+          "price": "R$ 10,00"
+        }
+      ]
+    },
+    {
+      "category": "Drinks prontos",
+      "items": [
+        {
+          "name": "Beats LN",
+          "price": "R$ 10,00"
+        },
+        {
+          "name": "Beats Lata",
+          "price": "R$ 8,00"
+        }
+      ]
+    },
+    {
+      "category": "Refrigerantes",
+      "items": [
+        {
+          "name": "Guaraná Antarctica Lata",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Guaraná Antarctica Zero Lata",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Pepsi Black Lata",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Coca Cola Lata",
+          "price": "R$ 5,00"
+        },
+        {
+          "name": "Tônica Antarctica Lata",
+          "price": "R$ 6,00"
+        },
+        {
+          "name": "Guaraná Antarctica 1L",
+          "price": "R$ 7,00"
+        },
+        {
+          "name": "Guaraná Antarctica Zero 1L",
+          "price": "R$ 7,00"
+        },
+        {
+          "name": "Pepsi 1L",
+          "price": "R$ 7,00"
+        },
+        {
+          "name": "Pepsi Black 1L",
+          "price": "R$ 7,00"
+        },
+        {
+          "name": "Coca Cola 1L",
+          "price": "R$ 9,00"
+        }
+      ]
+    },
+    {
+      "category": "Outras bebidas",
+      "items": [
+        {
+          "name": "Gatorade 500ML",
+          "price": "R$ 7,00"
+        },
+        {
+          "name": "H20H 500ml",
+          "price": "R$ 6,00"
+        },
+        {
+          "name": "Red Bull",
+          "price": "R$ 12,00"
+        }
+      ]
+    }
+  ]
+}

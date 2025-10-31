@@ -1,0 +1,49 @@
+tipo,valor
+restaurant,Bar Parada obrigatoria
+model,B
+total_items,37
+categoria,Cervejas Choop
+item,"Brahma Chopp 600ML|R$ 12,00"
+categoria,Cervjas 600ml
+item,"Brahma Chopp 600ML|R$ 12,00"
+item,"Stella Artois 600ML|R$ 13,00"
+item,"Original 600ML|R$ 13,00"
+item,"Spaten 600ML|R$ 13,00"
+item,"Skol 600ML|R$ 12,00"
+item,"Heineken 600ML|R$ 16,00"
+item,"Amstel 600ML|R$ 13,00"
+item,"Antarctica 600ML|R$ 12,00"
+categoria,Cervejas Long Neck
+item,"Corona LN|R$ 10,00"
+item,"Stella Pure Gold LN|R$ 8,00"
+item,"Stella Artois LN|R$ 8,00"
+item,"Spaten LN|R$ 8,00"
+item,"Budweiser LN|R$ 8,00"
+categoria,Cervejas Litrinho
+item,"Brahma Chopp 300ML|R$ 5,00"
+item,"Brahma Duplo Malte 300ML|R$ 5,00"
+item,"Original 300ML|R$ 5,00"
+item,"Budweiser 300ML|R$ 5,00"
+item,"Antarctica Pilsen 300ml|R$ 5,00"
+item,"Skol 300ML|R$ 5,00"
+categoria,Cervejas Zero
+item,"Heineken Zero LN|R$ 10,00"
+item,"Corona Cero LN|R$ 10,00"
+categoria,Drinks prontos
+item,"Beats LN|R$ 10,00"
+item,"Beats Lata|R$ 8,00"
+categoria,Refrigerantes
+item,"Guaraná Antarctica Lata|R$ 5,00"
+item,"Guaraná Antarctica Zero Lata|R$ 5,00"
+item,"Pepsi Black Lata|R$ 5,00"
+item,"Coca Cola Lata|R$ 5,00"
+item,"Tônica Antarctica Lata|R$ 6,00"
+item,"Guaraná Antarctica 1L|R$ 7,00"
+item,"Guaraná Antarctica Zero 1L|R$ 7,00"
+item,"Pepsi 1L|R$ 7,00"
+item,"Pepsi Black 1L|R$ 7,00"
+item,"Coca Cola 1L|R$ 9,00"
+categoria,Outras bebidas
+item,"Gatorade 500ML|R$ 7,00"
+item,"H20H 500ml|R$ 6,00"
+item,"Red Bull|R$ 12,00"

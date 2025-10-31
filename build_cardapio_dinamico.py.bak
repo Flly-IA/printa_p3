@@ -7,6 +7,7 @@ import re
 import sys
 from pathlib import Path
 
+# Linha 6-11 - CORRIGIDO:
 try:
     import win32com.client as win32
 except ImportError:
@@ -15,24 +16,25 @@ except ImportError:
 
 def get_corel_app(visible=True):
     """Inicializa CorelDRAW COM"""
-    # Tentar conectar ao CorelDRAW já aberto
     try:
         app = win32.GetActiveObject("CorelDRAW.Application")
         app.Visible = True
         return app
+    import win32com.client as win32
+except ImportError:
+    print("pywin32 não encontrado. Instale com: pip install pywin32")
+    sys.exit(1)
+
+def get_corel_app(visible=True):  # ← Mudou aqui
+    """Inicializa CorelDRAW COM"""
+    try:
+        app = win32.GetActiveObject("CorelDRAW.Application")
+        app.Visible = True  # ← Mudou aqui
+        return app
     except Exception:
         pass
-    
-    # Tentar iniciar CorelDRAW 25 especificamente
-    try:
-        app = win32.Dispatch("CorelDRAW.Application.25")
-        app.Visible = True
-        return app
-    except Exception as e:
-        print(f"Erro ao iniciar CorelDRAW.Application.25: {e}")
-    
-    # Tentar versões genéricas
     for pid in [
+        "CorelDRAW.Application.25",
         "CorelDRAW.Application",
         "CorelDRAW.Application.26",
         "CorelDRAW.Application.24",
@@ -43,7 +45,6 @@ def get_corel_app(visible=True):
             return app
         except Exception:
             continue
-    
     raise RuntimeError("CorelDRAW COM indisponível.")
 
 PRICE_RE = re.compile(r"\s-\s*R\$\s*([\d\.,]+)\s*$", flags=re.IGNORECASE)

@@ -1,0 +1,14 @@
+# requirements.txt
+# Dependências para API de Cardápio Dinâmico
+
+# API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Windows COM (apenas Windows)
+pywin32>=306 ; sys_platform == "win32"
+
+# Utilitários
+pydantic>=2.0.0
+aiofiles>=23.2.1
