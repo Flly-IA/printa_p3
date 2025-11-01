@@ -138,17 +138,104 @@ def split_two_columns_preserving_order(categories):
         col1, col2 = col2, col1
     return col1, col2
 
-def compose_text_block(seq):
-    """Compõe bloco de texto com categorias e itens"""
+def calculate_char_width_for_frame(frame_width_units, font_size_pt, use_monospace=False):
+    """
+    Calcula quantos caracteres (aproximadamente) cabem na largura do frame
+
+    Args:
+        frame_width_units: Largura do frame em unidades do CorelDRAW (polegadas)
+        font_size_pt: Tamanho da fonte em pontos
+        use_monospace: Se True, usa cálculo para fonte monoespaçada
+
+    Returns:
+        Número aproximado de caracteres que cabem na linha
+    """
+    # Conversões:
+    # 1 polegada = 72 pontos
+
+    frame_width_points = frame_width_units * 72  # Converter para pontos
+
+    if use_monospace:
+        # Courier New: largura ≈ 0.6 * font_size
+        avg_char_width_points = font_size_pt * 0.6
+    else:
+        # Arial (proporcional): largura média ≈ 0.5 * font_size
+        # Mas vamos usar 0.55 para ser mais conservador e evitar overflow
+        avg_char_width_points = font_size_pt * 0.55
+
+    chars_per_line = int(frame_width_points / avg_char_width_points)
+
+    # Reduzir em 10% para margem de segurança
+    chars_per_line = int(chars_per_line * 0.9)
+
+    return chars_per_line
+
+def compose_text_block(seq, use_dots=True, target_width=50, debug=False):
+    """
+    Compõe bloco de texto com categorias e itens
+
+    Args:
+        seq: Sequência de items e categorias
+        use_dots: Se True, usa pontos para preencher espaço entre nome e preço
+        target_width: Largura alvo em caracteres para alinhar preços
+        debug: Se True, imprime debug info
+    """
     out = []
+
+    # Encontrar o maior nome e maior preço para calcular espaçamento
+    if use_dots:
+        max_name_length = 0
+        max_price_length = 0
+        item_count = 0
+        for e in seq:
+            if e["type"] == "item":
+                max_name_length = max(max_name_length, len(e['name']))
+                max_price_length = max(max_price_length, len(e['price']))
+                item_count += 1
+
+        if debug:
+            print(f"    📊 DEBUG: target_width={target_width}, items={item_count}")
+            print(f"    📊 DEBUG: max_name_length={max_name_length}, max_price_length={max_price_length}")
+
     for e in seq:
         if e["type"] == "cat":
             if out and out[-1] != "":
                 out.append("")
             out.append(e["text"].upper())
         else:
-            out.append(f"{e['name']}\t{e['price']}")
-    
+            if use_dots:
+                # Calcular quantos pontos colocar entre nome e preço
+                name = e['name']
+                price = e['price']
+
+                # CRÍTICO: Todos os preços devem terminar na mesma posição
+                # Posição final = target_width
+                # Preço começa em: target_width - max_price_length
+                # Nome termina em: (preço começa) - (espaço) - (pontos mínimos)
+
+                # Espaço total disponível para nome + pontos (reservar espaço para o maior preço)
+                available_for_name_and_dots = target_width - max_price_length - 1  # -1 para espaço antes do preço
+
+                # Espaço usado pelo nome
+                name_length = len(name)
+
+                # Pontos necessários (mínimo 3)
+                dots_count = max(3, available_for_name_and_dots - name_length - 1)  # -1 para espaço depois do nome
+                dots = "." * dots_count
+
+                # Preencher o preço à direita para que todos tenham o mesmo comprimento
+                price_padded = price.rjust(max_price_length)
+
+                line = f"{name} {dots} {price_padded}"
+                out.append(line)
+
+                # Debug: mostrar primeira linha
+                if debug and len(out) <= 3:
+                    print(f"    📝 DEBUG linha {len(out)}: [{line}] (len={len(line)})")
+            else:
+                # Fallback: usar tab (mas não funcionará sem TabStops)
+                out.append(f"{e['name']}\t{e['price']}")
+
     return "\r\n".join(out)
 
 def to_units(doc, value_mm):
@@ -252,16 +339,9 @@ def apply_text_style_and_tabs(doc, shape, font_name="Arial", font_size_pt=10.0, 
         except Exception:
             pass
 
-        # Tabs: limpar e adicionar na borda direita
-        try:
-            frame_width = abs(float(shape.SizeWidth))
-            tab_position = frame_width * 0.95
-
-            tr.TabStops.Clear()
-            tr.TabStops.Add(float(tab_position), 2)  # 2 = cdrRightTab
-            print(f"    ✅ Tab em {tab_position:.2f}")
-        except Exception as e:
-            print(f"    ⚠ TabStop falhou: {e}")
+        # NOTA: TabStops não está disponível na API COM desta versão do CorelDRAW
+        # Solução: O texto já vem formatado com pontos (.) para alinhar preços
+        print("    ℹ️ Usando pontos de preenchimento para alinhar preços")
 
         # Negrito para categorias
         try:
@@ -421,9 +501,16 @@ def main():
 
     if data["model"] == "A":
         print("   📄 Modelo A: 1 coluna")
-        seq = flatten_with_headers(data["categories"])
-        text_block = compose_text_block(seq)
         left, bottom, right, top = frames[0]
+        frame_width = abs(right - left)
+
+        # Calcular largura em caracteres
+        target_width = calculate_char_width_for_frame(frame_width, args.size)
+        print(f"   📏 Largura da caixa: {frame_width:.2f} unidades = ~{target_width} caracteres")
+
+        seq = flatten_with_headers(data["categories"])
+        print("   📝 Gerando texto (com debug)...")
+        text_block = compose_text_block(seq, use_dots=True, target_width=target_width, debug=True)
 
         shp = create_paragraph_text(layer, left, bottom, right, top)
         fill_paragraph(shp, text_block)
@@ -431,12 +518,24 @@ def main():
     else:
         print("   📄 Modelo B: 2 colunas")
         col1, col2 = split_two_columns_preserving_order(data["categories"])
-        tb1 = compose_text_block(col1)
-        tb2 = compose_text_block(col2)
 
         frame1, frame2 = frames
         left1, bottom1, right1, top1 = frame1
         left2, bottom2, right2, top2 = frame2
+
+        # Calcular largura para cada coluna
+        frame_width1 = abs(right1 - left1)
+        frame_width2 = abs(right2 - left2)
+        target_width1 = calculate_char_width_for_frame(frame_width1, args.size)
+        target_width2 = calculate_char_width_for_frame(frame_width2, args.size)
+
+        print(f"   📏 Coluna 1: {frame_width1:.2f} unidades = ~{target_width1} caracteres")
+        print(f"   📏 Coluna 2: {frame_width2:.2f} unidades = ~{target_width2} caracteres")
+
+        print("   📝 Gerando texto coluna 1 (com debug)...")
+        tb1 = compose_text_block(col1, use_dots=True, target_width=target_width1, debug=True)
+        print("   📝 Gerando texto coluna 2 (com debug)...")
+        tb2 = compose_text_block(col2, use_dots=True, target_width=target_width2, debug=True)
 
         print("   📝 Coluna 1...")
         shp1 = create_paragraph_text(layer, left1, bottom1, right1, top1)
@@ -463,9 +562,17 @@ def main():
     try:
         import os
         cdr_path = os.path.abspath(str(out_cdr))
-        print(f"   🔍 Salvando CDR em: {cdr_path}")
-        doc.SaveAs(cdr_path)
-        print(f"   ✅ CDR: {out_cdr.name}")
+        print(f"   🔍 Exportando CDR para: {cdr_path}")
+
+        # Tentar exportar como CDR (mais confiável)
+        try:
+            doc.Export(cdr_path, 48, 0)  # 48 = cdrCDR
+            print(f"   ✅ CDR: {out_cdr.name}")
+        except Exception as e1:
+            print(f"   ⚠ Export falhou: {e1}")
+            # Fallback: tentar SaveAs
+            doc.SaveAs(cdr_path)
+            print(f"   ✅ CDR: {out_cdr.name} (via SaveAs)")
     except Exception as e:
         print(f"   ⚠ CDR: {e}")
 

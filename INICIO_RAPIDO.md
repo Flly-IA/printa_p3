@@ -1,144 +1,67 @@
-# 🚀 GUIA DE INÍCIO RÁPIDO
+# 🚀 Início Rápido - Acessar API Externamente
 
-## ⚡ Setup Rápido (5 minutos)
+## ⚡ 3 Passos Simples
 
-### 1. Descompactar arquivos
-```bash
-unzip cardapio_api_completo.zip
-cd cardapio-api
+### 1️⃣ Execute o Diagnóstico
+
+```cmd
+python test_connectivity.py
 ```
 
-### 2. Instalar (Windows)
-```batch
-deploy_windows.bat
+Este script vai:
+- ✅ Mostrar todos os IPs da sua VM
+- ✅ Testar se a API está respondendo
+- ✅ Indicar qual IP usar no n8n
+
+### 2️⃣ Abra o Firewall (como Administrador)
+
+**Botão direito** em `abrir_firewall.bat` > **Executar como administrador**
+
+### 3️⃣ Use o IP Correto no n8n
+
+O script do passo 1 vai mostrar algo como:
+
+```
+✅ 192.168.1.100 (IP LOCAL - use este para acesso externo)
 ```
 
-### 3. Criar templates CorelDRAW
-```bash
-python create_templates.py
+No n8n, use:
 ```
-Mova `tplA.cdr` e `tplB.cdr` para a pasta `templates/`
-
-### 4. Iniciar API
-```batch
-start_api.bat
-```
-
-### 5. Testar
-- **Swagger**: http://localhost:8000/docs
-- **Cliente Web**: Abra `web_client.html` no navegador
-- **Cliente Python**: `python test_api_client.py`
-
----
-
-## 📋 Checklist Rápido
-
-- [ ] Python 3.8+ instalado
-- [ ] CorelDRAW instalado e licenciado
-- [ ] Dependências instaladas (`pip install -r requirements_api.txt`)
-- [ ] Templates criados na pasta `templates/`
-- [ ] API rodando (`python start_api.py`)
-
----
-
-## 🔧 Uso Básico
-
-### Via Web (Interface HTML)
-1. Abra `web_client.html` no navegador
-2. Selecione seu arquivo TXT
-3. Escolha fonte e tamanho
-4. Clique em "Gerar Cardápio"
-5. Aguarde e baixe os arquivos
-
-### Via cURL
-```bash
-curl -X POST "http://localhost:8000/cardapio/gerar" \
-  -F "file=@teste_input.txt" \
-  -F "font=Arial" \
-  -F "font_size=10.0"
-```
-
-### Via Python
-```python
-import requests
-
-with open('teste_input.txt', 'rb') as f:
-    response = requests.post(
-        'http://localhost:8000/cardapio/gerar',
-        files={'file': f},
-        data={'font': 'Arial', 'font_size': 10.0}
-    )
-
-job_id = response.json()['job_id']
-print(f"Job ID: {job_id}")
+http://192.168.1.100:8000/ping
 ```
 
 ---
 
-## 🌐 Deploy em Produção
+## ❌ Se Não Funcionar
 
-### Opção 1: Azure VM Windows
-1. Criar VM Windows Server 2019/2022
-2. Instalar Python + CorelDRAW
-3. Clonar repositório
-4. Executar `deploy_windows.bat`
-5. Configurar como serviço Windows (use NSSM)
-6. Abrir porta 8000 no firewall
+### Problema: "Nenhum IP local encontrado"
 
-### Opção 2: AWS EC2 Windows
-Mesmo processo da Azure
+**Sua VM está em modo NAT.** Você tem 2 opções:
 
-### Opção 3: VPS Windows (Contabo, OVH)
-Mesmo processo, mais barato
+#### Opção A: Mudar para Bridge (Recomendado)
 
----
+**VirtualBox:**
+1. Desligue a VM
+2. VirtualBox > Configurações > Rede
+3. Conectado a: **Placa em modo Bridge**
+4. Ligue a VM novamente
 
-## 🆘 Problemas Comuns
+**VMware:**
+1. Desligue a VM  
+2. VM Settings > Network Adapter
+3. Selecione: **Bridged**
+4. Ligue a VM novamente
 
-### "CorelDRAW COM indisponível"
-- Certifique-se de que o CorelDRAW está instalado
-- Execute o CorelDRAW manualmente uma vez
-- Verifique a licença
+#### Opção B: Port Forwarding (se não puder mudar para Bridge)
 
-### "ModuleNotFoundError: No module named 'win32com'"
-```bash
-pip install pywin32
-```
-
-### "Templates não encontrados"
-```bash
-python create_templates.py
-mkdir templates
-move tplA.cdr templates\
-move tplB.cdr templates\
-```
-
-### Porta 8000 já em uso
-Altere a porta em `start_api.py`:
-```python
-uvicorn.run(app, host="0.0.0.0", port=8001)
-```
+Use o IP do seu PC HOST (não da VM): `http://IP_DO_HOST:8000`
 
 ---
 
-## 📞 Suporte
+## 🧪 Teste Rápido
 
-- 📖 Documentação completa: `README_API.md`
-- 🐛 Issues: GitHub
-- 💬 Dúvidas: abra uma issue
+Na VM: `curl http://localhost:8000/ping`
 
----
+De outra máquina: `curl http://192.168.x.x:8000/ping`
 
-## ✅ Resultado Esperado
-
-Após seguir este guia, você terá:
-- ✅ API rodando em `http://localhost:8000`
-- ✅ Interface web funcional
-- ✅ Geração automática de cardápios em PDF/PNG/CDR
-- ✅ Sistema pronto para produção
-
-**Tempo total: ~5-10 minutos**
-
----
-
-**Boa sorte! 🎉**
+Navegador: `http://192.168.x.x:8000/docs`
